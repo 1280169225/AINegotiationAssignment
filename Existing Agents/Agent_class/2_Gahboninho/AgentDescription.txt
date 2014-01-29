@@ -1,0 +1,13 @@
+Gahboninho V3-
+A less friendly version of V2. 
+To compensate this toughness and the lack of low-utility bid variety, 
+a simple variance-based opponent model was added, so 
+each bid is more effective.
+
+the opponent niceness evaluation was updated, although i still can't decide
+if that was an improvement or not.
+
+More over, V3 would suggest using the opponent's best bid if the time is almost up and the
+opponent's bid was not too awful. He does not do that cautiously -
+if an opponent will intentionally freeze to make the agent miscalculate the time, 
+V3 might give up earlier than it should

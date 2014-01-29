@@ -1,0 +1,39 @@
+This is a description of value model agent.
+Created by Asaf Frieder, Dror Sholomon and Gal Miller.
+The agent starts by providing opponent with its 98%+ bids.
+We severly limit our concession in the first 80% of the timeline.
+If there is a large discount we compromize only as much as we think our
+opponent compromized.
+If there is no discount we don't move as long as our opponent
+is compromizing. If he stopped moving we compromize up to 2/3 of our
+opponent's approximated compromize.
+In the 80%-90% we compromize up to 50% of the difference, providing that
+our opponent is still not compromizing.
+After 90% we sleep and make our "final offer", if our opponent returns offers
+we send him his best offer to us (accepting his last offer only if its
+close enough).
+The agent, never goes bellow 70% no matter what happens (not including discount).
+
+In our new version we make 3 ultimatum offers each using sleep as motivation
+
+In each one we are willing to compromize more, after the ultimatums
+we resume exploration for a while just in case our ultimatum offer wasn't
+near the pareto. Unlike our last version in the end we are willing to go
+bellow 70% down to 55% (or even 51% if an offer is made by opponent)
+
+This agent uses a very complex form of temporal difference reinforcement
+learning to learn opponent's utility space.
+The learning is focused on finding the amount of utility lost by
+opponent for each value.
+However, as the bid (expected) utilities represent the decrease in all
+issues, we needed a way to decide which values should change the most.
+We use estimations of standard deviation and reliability of a value
+to decide how to make the split.
+The reliability is also used to decide the learning factor of the individual
+learning.
+We added an exploration model to recognize under explored values and test them
+
+we are also now using a symetric lower bound to approximate the opponents
+concession (if my opponent bid 100 different bids, and my 100th bid is worth
+94%, we assume that he conceded at least 6%).
+
