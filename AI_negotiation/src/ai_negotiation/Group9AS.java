@@ -4,7 +4,6 @@ package ai_negotiation;
 import java.util.HashMap;
 import java.util.List;
 import negotiator.BidHistory;
-import negotiator.Timeline;
 import negotiator.bidding.BidDetails;
 import negotiator.boaframework.AcceptanceStrategy;
 import negotiator.boaframework.Actions;
@@ -30,7 +29,17 @@ public class Group9AS extends AcceptanceStrategy{
         double oppBidUtility = bh.getLastBidDetails().getMyUndiscountedUtil();
         double timeNorm = this.negotiationSession.getTime();
         double currentTime = this.negotiationSession.getTimeline().getCurrentTime();
-        BidHistory currentBH = bh.filterBetweenTime(0, currentTime);
+        BidHistory currentBH = new BidHistory();
+        double timeWindow = 0;
+        while(currentTime < timeWindow || currentBH.size() < 10){
+            timeWindow += 10;
+            if(currentTime < timeWindow){ 
+                currentBH = bh.filterBetweenTime(0, currentTime);
+            }
+            else{
+                currentBH = bh.filterBetweenTime(currentTime-timeWindow, currentTime);
+            }
+        }
         List<BidDetails> bids = currentBH.getHistory();
         double meanUtility = currentBH.getAverageUtility();
         double std = 0;
