@@ -31,26 +31,30 @@ public class Group9AS extends AcceptanceStrategy{
         double currentTime = this.negotiationSession.getTimeline().getCurrentTime();
         BidHistory currentBH = new BidHistory();
         double timeWindow = 0;
-        while(currentTime < timeWindow || currentBH.size() < 10){
-            timeWindow += 10;
-            if(currentTime < timeWindow){ 
+        
+        while(currentBH.size() < 10){
+            timeWindow += 5;
+            if(currentTime <= timeWindow){ 
                 currentBH = bh.filterBetweenTime(0, currentTime);
+                break;
             }
             else{
                 currentBH = bh.filterBetweenTime(currentTime-timeWindow, currentTime);
             }
         }
+
         List<BidDetails> bids = currentBH.getHistory();
-        double meanUtility = currentBH.getAverageUtility();
+        double currentMean = currentBH.getAverageUtility();
+        double totalMean = bh.getAverageUtility();
         double std = 0;
         for(int i=0;i<bids.size();i++){
-            std = std + (bids.get(i).getMyUndiscountedUtil() - meanUtility);
+            std = std + (bids.get(i).getMyUndiscountedUtil() - currentMean);
         }
         std = std / bids.size();
         double disFactor = this.negotiationSession.getDiscountFactor();
-        double bid = myBidUtility - (1 * std) * Math.pow(timeNorm,1-disFactor);
+        double bid = myBidUtility - ((currentMean+(1-currentMean)*std)-totalMean) * Math.pow(timeNorm,disFactor);
                 
-        if(oppBidUtility >= bid){
+        if(oppBidUtility > bid){
             return Actions.Accept;
         }
         return Actions.Reject;
