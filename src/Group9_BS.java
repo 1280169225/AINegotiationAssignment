@@ -42,13 +42,15 @@ public class Group9_BS extends OfferingStrategy{
 	public BidDetails determineNextBid() {
 		BidDetails opponentSecondToLastBid = opponentLastBid;
 		opponentLastBid = this.negotiationSession.getOpponentBidHistory().getLastBidDetails();
-		
+		double timeNorm = this.negotiationSession.getTime();
+                double disFactor = this.negotiationSession.getDiscountFactor();
+
 		double secondToLastUtility = this.opponentModel.getBidEvaluation(opponentSecondToLastBid.getBid());
 		double lastUtility = this.opponentModel.getBidEvaluation(opponentLastBid.getBid());
 		double difference = secondToLastUtility - lastUtility;
 		
 		BidDetails myLastBid = this.negotiationSession.getOwnBidHistory().getLastBidDetails();
-		double newUtility = myLastBid.getMyUndiscountedUtil() - difference;
+		double newUtility = myLastBid.getMyUndiscountedUtil() - difference*Math.pow(timeNorm, disFactor);
 		
 		return outcomeSpace.getBidNearUtility(newUtility);
 	}
