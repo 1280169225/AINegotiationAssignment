@@ -1,7 +1,10 @@
 
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import negotiator.Bid;
 import negotiator.bidding.BidDetails;
@@ -26,6 +29,9 @@ public class FrequencyOpponentModel extends OpponentModel {
 	private double standardAddedWeight;
 	private int numberOfIssues;
 	private int standardValueAddition;
+	private HashMap<Double, Double> opponentBidUtilityHistory;
+	
+	private HashMap<Issue, Value> bestValues;
 
 
 	/**
@@ -34,6 +40,10 @@ public class FrequencyOpponentModel extends OpponentModel {
 	 */
 	@Override
 	public void init(NegotiationSession negotiationSession, HashMap<String, Double> parameters) throws Exception {
+		
+		opponentBidUtilityHistory = new HashMap<Double, Double>();
+		bestValues = new HashMap<Issue, Value>();
+		
 		this.negotiationSession = negotiationSession;
 		if (parameters != null && parameters.get("l") != null) {
 			standardAddedWeight = parameters.get("l");
@@ -75,7 +85,6 @@ public class FrequencyOpponentModel extends OpponentModel {
 	private HashMap<Integer, Boolean> bidDifference(BidDetails firstBid, BidDetails secondBid){
 		HashMap<Integer, Boolean >issueChanged = new HashMap<Integer, Boolean>();
 
-		int i = 0;
 		for(Issue issue : opponentUtilitySpace.getDomain().getIssues()){
 			try{
 				Value firstBidValue = firstBid.getBid().getValue(issue.getNumber());
@@ -84,7 +93,6 @@ public class FrequencyOpponentModel extends OpponentModel {
 					issueChanged.put(issue.getNumber(), false);
 				else
 					issueChanged.put(issue.getNumber(), true);
-				i++;
 			}catch(Exception  e){
 				e.printStackTrace();
 			}
@@ -98,7 +106,20 @@ public class FrequencyOpponentModel extends OpponentModel {
 	 */
 	@Override
 	public void updateModel(Bid opponentBid, double time) {
-
+		
+		//We assume that the first bid an opponent offers is the one with the highes values for every issue
+		if(negotiationSession.getOpponentBidHistory().getHistory().size() == 1){
+			BidDetails bid = negotiationSession.getOpponentBidHistory().getHistory().get(0);
+			for(Issue issue : opponentUtilitySpace.getDomain().getIssues()){
+				try {
+					bestValues.put(issue, bid.getBid().getValue(issue.getNumber()));
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+				
+			}
+		}
+		
 		int indexOfLastBid = negotiationSession.getOpponentBidHistory().getHistory().size()-1;
 
 		BidDetails lastOppBid = negotiationSession.getOpponentBidHistory().getHistory().get(indexOfLastBid); 
@@ -116,17 +137,26 @@ public class FrequencyOpponentModel extends OpponentModel {
 
 		/*
 		 * The later an issue is changed the more important it should be.
-		 * If two issues are changed simeoultaneusly they must be regarded
+		 * If two issues are changed simultaneously they must be regarded
 		 * as equally important.
 		 */
 		double addedWeight = standardAddedWeight / (time*numberOfUnchangedIssues);
 		double totalWeight = 1+addedWeight*(double)numberOfUnchangedIssues; //normalized weight+added weight
+		
 
 		//Normalize
 		for(Integer issue : differenceBetweenBids.keySet()){
 			Objective currentObjective = opponentUtilitySpace.getObjective(issue);
 			double currentWeight = opponentUtilitySpace.getWeight(issue);
 			if(differenceBetweenBids.get(issue)){
+				//If the value is the best value then we assume the issue is more important
+				try {
+					if(opponentBid.getValue(issue).equals(bestValues.get(issue))){
+						addedWeight*=2; //This value is completely arbitrary
+					}
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
 				opponentUtilitySpace.setWeight(currentObjective, currentWeight/totalWeight);
 			}else
 				opponentUtilitySpace.setWeight(currentObjective, (currentWeight+addedWeight)/totalWeight);
@@ -139,9 +169,14 @@ public class FrequencyOpponentModel extends OpponentModel {
 
 				Bid bid = lastOppBid.getBid();
 				IssueDiscrete key = (IssueDiscrete)evaluator.getKey();
-
+				int valueAddition = standardValueAddition;
+					
+				//If the bid has been offered before we assume that these values are more important
+				if(negotiationSession.getOpponentBidHistory().getHistory().contains(opponentBid)){
+					valueAddition++; //This is completely arbitrary
+				}
 				evaluatorValue.setEvaluation(bid.getValue(key.getNumber()), 
-						( standardValueAddition + (evaluatorValue).getEvaluationNotNormalized(((ValueDiscrete)bid.getValue(key.getNumber()) ) ))
+						( valueAddition + (evaluatorValue).getEvaluationNotNormalized(((ValueDiscrete)bid.getValue(key.getNumber()) ) ))
 						);
 			}
 		} catch(Exception ex){
@@ -155,6 +190,40 @@ public class FrequencyOpponentModel extends OpponentModel {
 
 
 
+	}
+	
+	
+	/**
+	 * A method for getting \chi. The max utility in every every interval t_c over t*.
+	 * @param interval
+	 * @return
+	 */
+	public ArrayList<Double> getChi(double interval){
+		ArrayList<Double> data = new ArrayList<Double>();
+		ArrayList<Double> timeList = new ArrayList<Double>(opponentBidUtilityHistory.keySet());
+		Collections.sort(timeList);
+		
+		double max = 0;
+		for(Double time : timeList){
+			double temp = opponentBidUtilityHistory.get(time);
+			if(temp > max){
+				max = temp;
+			}
+			if(time % interval > 0){
+				data.add(max);
+				max = 0;
+			}
+		}
+		
+		return data;
+	}
+	
+	
+	public void recordOpponentBid(Bid bid, double time){
+		
+		double utility = negotiationSession.getDiscountedUtility(bid, time);
+		opponentBidUtilityHistory.put(time, utility);
+		
 	}
 
 	@Override
