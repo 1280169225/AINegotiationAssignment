@@ -52,9 +52,12 @@ public class Group9AS extends AcceptanceStrategy{
         }
         std = std / bids.size();
         double disFactor = this.negotiationSession.getDiscountFactor();
-        double bid = myBidUtility - ((currentMean+(1-currentMean)*std)-totalMean) * Math.pow(timeNorm,disFactor);
+        double bid = myBidUtility - (currentMean-totalMean)* (currentMean*std) * Math.pow(timeNorm,disFactor);
                 
         if(oppBidUtility > bid){
+            return Actions.Accept;
+        }
+        else if(oppBidUtility > myBidUtility){
             return Actions.Accept;
         }
         return Actions.Reject;

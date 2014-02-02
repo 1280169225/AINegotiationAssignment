@@ -16,6 +16,8 @@ public class Group9_BS extends OfferingStrategy {
 
     private SortedOutcomeSpace outcomeSpace;
     private BidDetails opponentLastBid;
+    private BidDetails opponentMaxBid;
+    private double start = 1;
 
     /**
      * Empty constructor
@@ -43,18 +45,56 @@ public class Group9_BS extends OfferingStrategy {
      * Tit-for-tat strategy
      */
     public BidDetails determineNextBid() {
-        BidDetails opponentSecondToLastBid = opponentLastBid;
-        opponentLastBid = this.negotiationSession.getOpponentBidHistory().getLastBidDetails();
+        if(opponentLastBid == null){
+            opponentLastBid = this.negotiationSession.getOpponentBidHistory().getFirstBidDetails(); 
+        }
+        if(opponentMaxBid == null){
+            opponentMaxBid = this.negotiationSession.getOpponentBidHistory().getFirstBidDetails();
+        }
+        
+        BidDetails opponentCurrentBid = this.negotiationSession.getOpponentBidHistory().getLastBidDetails();
         double timeNorm = this.negotiationSession.getTime();
         double disFactor = this.negotiationSession.getDiscountFactor();
 
-        double secondToLastUtility = this.opponentModel.getBidEvaluation(opponentSecondToLastBid.getBid());
-        double lastUtility = this.opponentModel.getBidEvaluation(opponentLastBid.getBid());
-        double difference = lastUtility - secondToLastUtility;
+        double lastOppUtility = opponentLastBid.getMyUndiscountedUtil();
+        double currentOppUtility = opponentCurrentBid.getMyUndiscountedUtil();
+        double maxOppUtility = opponentMaxBid.getMyUndiscountedUtil();
+        double difference;
 
+        if(currentOppUtility > maxOppUtility){
+            difference = (maxOppUtility - currentOppUtility);
+        }
+        else{
+            difference = (currentOppUtility - lastOppUtility) * (1-(maxOppUtility-currentOppUtility));
+        }
+        
+        if(difference > 0){
+            difference *= Math.pow(timeNorm, disFactor);
+        }
+        else{
+            difference *= Math.pow(1-timeNorm, disFactor);
+        }
+        
         BidDetails myLastBid = this.negotiationSession.getOwnBidHistory().getLastBidDetails();
-        double newUtility = myLastBid.getMyUndiscountedUtil() - difference * Math.pow(timeNorm, disFactor);
-        nextBid = outcomeSpace.getBidNearUtility(newUtility);
+        double newUtility;
+        if(timeNorm > 0.95){
+            double diff = start-maxOppUtility;
+            double time = this.negotiationSession.getTimeline().getTotalTime();
+            
+            newUtility = (maxOppUtility + diff) - (1 / time);
+            start = newUtility;
+            if(newUtility < opponentMaxBid.getMyUndiscountedUtil()){
+                nextBid = opponentMaxBid;
+                return nextBid;
+        }
+        }
+        else{
+            newUtility = myLastBid.getMyUndiscountedUtil() - (0.2*difference);
+        }
+        nextBid = omStrategy.getBid(outcomeSpace, newUtility);
+        opponentLastBid = opponentCurrentBid;
+        opponentMaxBid = this.negotiationSession.getOpponentBidHistory().getBestBidDetails();
+
         return nextBid;
     }
 
