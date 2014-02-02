@@ -29,7 +29,7 @@ public class Group9_OM extends OpponentModel {
 	private double standardAddedWeight;
 	private int numberOfIssues;
 	private int standardValueAddition;
-	private HashMap<Double, Double> opponentBidUtilityHistory;
+//	private HashMap<Double, Double> opponentBidUtilityHistory;
 	
 	private HashMap<Issue, Value> bestValues;
 
@@ -41,7 +41,7 @@ public class Group9_OM extends OpponentModel {
 	@Override
 	public void init(NegotiationSession negotiationSession, HashMap<String, Double> parameters) throws Exception {
 		
-		opponentBidUtilityHistory = new HashMap<Double, Double>();
+//		opponentBidUtilityHistory = new HashMap<Double, Double>();
 		bestValues = new HashMap<Issue, Value>();
 		
 		this.negotiationSession = negotiationSession;
@@ -140,15 +140,16 @@ public class Group9_OM extends OpponentModel {
 		 * If two issues are changed simultaneously they must be regarded
 		 * as equally important.
 		 */
-		double addedWeight = standardAddedWeight / (time*numberOfUnchangedIssues);
+		double addedWeight = standardAddedWeight / (time*numberOfIssues);
 		double totalWeight = 1+addedWeight*(double)numberOfUnchangedIssues; //normalized weight+added weight
+		double maximumWeight = 1D - ((double)numberOfIssues) * addedWeight / totalWeight; 
 		
 
-		//Normalize
+		//Normalize the issue weights
 		for(Integer issue : differenceBetweenBids.keySet()){
 			Objective currentObjective = opponentUtilitySpace.getObjective(issue);
 			double currentWeight = opponentUtilitySpace.getWeight(issue);
-			if(differenceBetweenBids.get(issue)){
+			if((!differenceBetweenBids.get(issue)) && currentWeight < maximumWeight){
 				//If the value is the best value then we assume the issue is more important
 				try {
 					if(opponentBid.getValue(issue).equals(bestValues.get(issue))){
@@ -157,9 +158,12 @@ public class Group9_OM extends OpponentModel {
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
-				opponentUtilitySpace.setWeight(currentObjective, currentWeight/totalWeight);
-			}else
 				opponentUtilitySpace.setWeight(currentObjective, (currentWeight+addedWeight)/totalWeight);
+				
+			}else{
+				opponentUtilitySpace.setWeight(currentObjective, currentWeight/totalWeight);
+			}
+				
 		}
 
 		try{
@@ -193,38 +197,38 @@ public class Group9_OM extends OpponentModel {
 	}
 	
 	
-	/**
-	 * A method for getting \chi. The max utility in every every interval t_c over t*.
-	 * @param interval
-	 * @return
-	 */
-	public ArrayList<Double> getChi(double interval){
-		ArrayList<Double> data = new ArrayList<Double>();
-		ArrayList<Double> timeList = new ArrayList<Double>(opponentBidUtilityHistory.keySet());
-		Collections.sort(timeList);
-		
-		double max = 0;
-		for(Double time : timeList){
-			double temp = opponentBidUtilityHistory.get(time);
-			if(temp > max){
-				max = temp;
-			}
-			if(time % interval > 0){
-				data.add(max);
-				max = 0;
-			}
-		}
-		
-		return data;
-	}
+//	/**
+//	 * A method for getting \chi. The max utility in every every interval t_c over t*.
+//	 * @param interval
+//	 * @return
+//	 */
+//	public ArrayList<Double> getChi(double interval){
+//		ArrayList<Double> data = new ArrayList<Double>();
+//		ArrayList<Double> timeList = new ArrayList<Double>(opponentBidUtilityHistory.keySet());
+//		Collections.sort(timeList);
+//		
+//		double max = 0;
+//		for(Double time : timeList){
+//			double temp = opponentBidUtilityHistory.get(time);
+//			if(temp > max){
+//				max = temp;
+//			}
+//			if(time % interval > 0){
+//				data.add(max);
+//				max = 0;
+//			}
+//		}
+//		
+//		return data;
+//	}
 	
 	
-	public void recordOpponentBid(Bid bid, double time){
-		
-		double utility = negotiationSession.getDiscountedUtility(bid, time);
-		opponentBidUtilityHistory.put(time, utility);
-		
-	}
+//	public void recordOpponentBid(Bid bid, double time){
+//		
+//		double utility = negotiationSession.getDiscountedUtility(bid, time);
+//		opponentBidUtilityHistory.put(time, utility);
+//		
+//	}
 
 	@Override
 	public double getBidEvaluation(Bid bid) {
