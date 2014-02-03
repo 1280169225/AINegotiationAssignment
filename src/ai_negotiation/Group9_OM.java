@@ -22,20 +22,26 @@ import negotiator.utility.UtilitySpace;
 
 /**
  * BOA framework implementation of a simple Frequency model. Based on
- * the hardheaded frequency model, but takes time into account.
+ * the hardheaded frequency model. Takes repeated bids and repeated
+ * best values into account when updating opponent weights.
+ * 
+ * @Author Jacob
  * 
  */
 public class Group9_OM extends OpponentModel {
 
-	private double standardAddedWeight;
+	private double standardAddedWeight; //added to issue weight each update
 	private int numberOfIssues;
-	private int standardValueAddition;
-	
+	private int standardValueAddition; //added to value weight each update
+
+	//How much important repeated values are
 	private double valueImportanceMultiplier;
+	//How importand repeated issues are
 	private double issueImportanceMultiplier;
 	private double timeOrNot;
-//	private HashMap<Double, Double> opponentBidUtilityHistory;
-	
+	//	private HashMap<Double, Double> opponentBidUtilityHistory;
+
+	//Contains the best values for each issue
 	private HashMap<Issue, Value> bestValues;
 
 
@@ -45,17 +51,17 @@ public class Group9_OM extends OpponentModel {
 	 */
 	@Override
 	public void init(NegotiationSession negotiationSession, HashMap<String, Double> parameters) throws Exception {
-		
-//		opponentBidUtilityHistory = new HashMap<Double, Double>();
+
+		//		opponentBidUtilityHistory = new HashMap<Double, Double>();
 		bestValues = new HashMap<Issue, Value>();
-		
+
 		this.negotiationSession = negotiationSession;
 		if (parameters != null && parameters.get("l") != null) {
 			standardAddedWeight = parameters.get("l");
 		} else {
 			standardAddedWeight = 0.2;
 		}
-		
+
 		if (parameters != null && parameters.get("vi") != null) {
 			valueImportanceMultiplier = parameters.get("vi");
 		} else {
@@ -71,11 +77,15 @@ public class Group9_OM extends OpponentModel {
 		} else {
 			timeOrNot = 0;
 		}
-		
+
 		standardValueAddition = 1;
 		initializeModel();
 	}
 
+	/**
+	 * Initializes the opponent model. Sets all of the initial issue
+	 * weights to be normalized. Also initializes the value weights.
+	 */
 	private void initializeModel(){
 		opponentUtilitySpace = new UtilitySpace(negotiationSession.getUtilitySpace());
 		numberOfIssues = opponentUtilitySpace.getDomain().getIssues().size();
@@ -102,7 +112,7 @@ public class Group9_OM extends OpponentModel {
 	 * is different then the corresponding issue is set to true.
 	 * @param firstBid
 	 * @param secondBid
-	 * @return
+	 * @return HashMap containing the differences
 	 */
 	private HashMap<Integer, Boolean> bidDifference(BidDetails firstBid, BidDetails secondBid){
 		HashMap<Integer, Boolean >issueChanged = new HashMap<Integer, Boolean>();
@@ -124,11 +134,11 @@ public class Group9_OM extends OpponentModel {
 	}
 
 	/**
-	 * Updates the opponent model given a bid.
+	 * Updates the opponent model given a bid and time.
 	 */
 	@Override
 	public void updateModel(Bid opponentBid, double time) {
-		
+
 		//We assume that the first bid an opponent offers is the one with the highes values for every issue
 		if(negotiationSession.getOpponentBidHistory().getHistory().size() == 1){
 			BidDetails bid = negotiationSession.getOpponentBidHistory().getHistory().get(0);
@@ -138,14 +148,14 @@ public class Group9_OM extends OpponentModel {
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
-				
+
 			}
 		}
-		
+
 		if(negotiationSession.getOpponentBidHistory().size() < 2) {
 			return;
 		}
-		
+
 		int indexOfLastBid = negotiationSession.getOpponentBidHistory().getHistory().size()-1;
 
 		BidDetails lastOppBid = negotiationSession.getOpponentBidHistory().getHistory().get(indexOfLastBid); 
@@ -159,21 +169,25 @@ public class Group9_OM extends OpponentModel {
 				numberOfUnchangedIssues++;
 		}
 
+
+
 		//Now update the weight in the opponent utility space
 
 		/*
 		 * The later an issue is changed the more important it should be.
 		 * If two issues are changed simultaneously they must be regarded
-		 * as equally important.
+		 * as equally important. Off by default.
 		 */
 		double addedWeight;
 		if(timeOrNot == 1)
 			addedWeight = standardAddedWeight / (double)(time*numberOfIssues);
 		else
 			addedWeight = standardAddedWeight / (double)(numberOfIssues);
-		double totalWeight = 1+addedWeight*(double)numberOfUnchangedIssues; //normalized weight+added weight
+
+		//normalized weight+added weight
+		double totalWeight = 1+addedWeight*(double)numberOfUnchangedIssues; 
 		double maximumWeight = 1D - ((double)numberOfIssues) * addedWeight / totalWeight; 
-		
+
 
 		//Normalize the issue weights
 		for(Integer issue : differenceBetweenBids.keySet()){
@@ -183,18 +197,18 @@ public class Group9_OM extends OpponentModel {
 				//If the value is the best value then we assume the issue is more important
 				try {
 					if(opponentBid.getValue(issue).equals(bestValues.get(issue))){
-						addedWeight*=valueImportanceMultiplier; //This value is completely arbitrary
+						addedWeight*=valueImportanceMultiplier;
 					}
 				} catch (Exception e) {
 					e.printStackTrace();
 				}
 				opponentUtilitySpace.setWeight(currentObjective, (currentWeight+addedWeight)/totalWeight);
-				
+
 			}else{
-			//If the value is the best value then we assume the issue is more important
+				//If the value is the best value then we assume the issue is more important
 				try {
 					if(opponentBid.getValue(issue).equals(bestValues.get(issue))){
-						
+
 					}else
 						addedWeight = 0;
 				} catch (Exception e) {
@@ -202,9 +216,11 @@ public class Group9_OM extends OpponentModel {
 				}
 				opponentUtilitySpace.setWeight(currentObjective, (currentWeight+addedWeight)/totalWeight);
 			}
-				
+
 		}
 
+
+		//Reweigh the values based on new data
 		try{
 			for(Entry<Objective, Evaluator> evaluator: opponentUtilitySpace.getEvaluators()){
 
@@ -213,10 +229,10 @@ public class Group9_OM extends OpponentModel {
 				Bid bid = lastOppBid.getBid();
 				IssueDiscrete key = (IssueDiscrete)evaluator.getKey();
 				int valueAddition = standardValueAddition;
-					
+
 				//If the bid has been offered before we assume that these values are more important
 				if(negotiationSession.getOpponentBidHistory().getHistory().contains(opponentBid)){
-					valueAddition*=issueImportanceMultiplier; //This is completely arbitrary
+					valueAddition*=issueImportanceMultiplier;
 				}
 				evaluatorValue.setEvaluation(bid.getValue(key.getNumber()), 
 						( valueAddition + (evaluatorValue).getEvaluationNotNormalized(((ValueDiscrete)bid.getValue(key.getNumber()) ) ))
@@ -225,50 +241,8 @@ public class Group9_OM extends OpponentModel {
 		} catch(Exception ex){
 			ex.printStackTrace();
 		}
-		
-
-
-
-
-
-
-
-
 	}
-	
-	
-//	/**
-//	 * A method for getting \chi. The max utility in every every interval t_c over t*.
-//	 * @param interval
-//	 * @return
-//	 */
-//	public ArrayList<Double> getChi(double interval){
-//		ArrayList<Double> data = new ArrayList<Double>();
-//		ArrayList<Double> timeList = new ArrayList<Double>(opponentBidUtilityHistory.keySet());
-//		Collections.sort(timeList);
-//		
-//		double max = 0;
-//		for(Double time : timeList){
-//			double temp = opponentBidUtilityHistory.get(time);
-//			if(temp > max){
-//				max = temp;
-//			}
-//			if(time % interval > 0){
-//				data.add(max);
-//				max = 0;
-//			}
-//		}
-//		
-//		return data;
-//	}
-	
-	
-//	public void recordOpponentBid(Bid bid, double time){
-//		
-//		double utility = negotiationSession.getDiscountedUtility(bid, time);
-//		opponentBidUtilityHistory.put(time, utility);
-//		
-//	}
+
 
 	@Override
 	public double getBidEvaluation(Bid bid) {
@@ -283,6 +257,6 @@ public class Group9_OM extends OpponentModel {
 
 	@Override
 	public String getName() {
-		return "Frequency Model";
+		return "Group9_OM";
 	}
 }
