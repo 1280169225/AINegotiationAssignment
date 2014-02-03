@@ -69,7 +69,7 @@ public class Group9_OM extends OpponentModel {
 		if (parameters != null && parameters.get("ton") != null) {
 			timeOrNot = parameters.get("ton");
 		} else {
-			timeOrNot = 1;
+			timeOrNot = 0;
 		}
 		
 		standardValueAddition = 1;
@@ -191,7 +191,16 @@ public class Group9_OM extends OpponentModel {
 				opponentUtilitySpace.setWeight(currentObjective, (currentWeight+addedWeight)/totalWeight);
 				
 			}else{
-				opponentUtilitySpace.setWeight(currentObjective, currentWeight/totalWeight);
+			//If the value is the best value then we assume the issue is more important
+				try {
+					if(opponentBid.getValue(issue).equals(bestValues.get(issue))){
+						
+					}else
+						addedWeight = 0;
+				} catch (Exception e) {
+					e.printStackTrace();
+				}
+				opponentUtilitySpace.setWeight(currentObjective, (currentWeight+addedWeight)/totalWeight);
 			}
 				
 		}
