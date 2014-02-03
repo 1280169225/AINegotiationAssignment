@@ -42,7 +42,7 @@ public class Group9_BS extends OfferingStrategy {
 
     @Override
     /**
-     * Tit-for-tat strategy
+     * Tit-for-tat approach for creating a bid
      */
     public BidDetails determineNextBid() {
         if(opponentLastBid == null){
@@ -52,6 +52,7 @@ public class Group9_BS extends OfferingStrategy {
             opponentMaxBid = this.negotiationSession.getOpponentBidHistory().getFirstBidDetails();
         }
         
+        // Calculate and obtain factors for the bid creation process
         BidDetails opponentCurrentBid = this.negotiationSession.getOpponentBidHistory().getLastBidDetails();
         double timeNorm = this.negotiationSession.getTime();
         double disFactor = this.negotiationSession.getDiscountFactor();
@@ -61,6 +62,8 @@ public class Group9_BS extends OfferingStrategy {
         double maxOppUtility = opponentMaxBid.getMyUndiscountedUtil();
         double difference;
 
+        // Two cases: current utility of opponent bid is lower than his maximum bid
+        // or it is higher: difference are calculated different then.
         if(currentOppUtility > maxOppUtility){
             difference = (maxOppUtility - currentOppUtility);
         }
@@ -68,6 +71,7 @@ public class Group9_BS extends OfferingStrategy {
             difference = (currentOppUtility - lastOppUtility) * (1-(maxOppUtility-currentOppUtility));
         }
         
+        // Same story again, but this time for the differences
         if(difference > 0){
             difference *= Math.pow(timeNorm, disFactor);
         }
@@ -77,6 +81,8 @@ public class Group9_BS extends OfferingStrategy {
         
         BidDetails myLastBid = this.negotiationSession.getOwnBidHistory().getLastBidDetails();
         double newUtility;
+        // When no agreement is met before almost the end of negotiation 
+        // then concede slowly to opponent maximum bid so far
         if(timeNorm > 0.95){
             double diff = start-maxOppUtility;
             double time = this.negotiationSession.getTimeline().getTotalTime();
@@ -86,7 +92,7 @@ public class Group9_BS extends OfferingStrategy {
             if(newUtility < opponentMaxBid.getMyUndiscountedUtil()){
                 nextBid = opponentMaxBid;
                 return nextBid;
-        }
+            }
         }
         else{
             newUtility = myLastBid.getMyUndiscountedUtil() - (0.2*difference);
